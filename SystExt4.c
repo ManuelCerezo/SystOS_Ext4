@@ -13,6 +13,7 @@
 #define LONGITUD_ARGUMENTOS 20 //No es necesario +20 caracteres para definir un argumento.
 
 //Funciones.
+void ImprimirByteMaps(EXT_BYTE_MAPS *Pbyte_map);
 void ActualizarSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,EXT_DATOS *particion);
 void LeeSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque);
 void desfracomando(char*comando,char *oren,char *Argumento1,char *Argumento2);
@@ -24,52 +25,61 @@ int main(){
     EXT_ENTRADA_DIR directorio[MAX_FICHEROS];     //Definicion de la estructura directorio
     EXT_DATOS memdatos[MAX_BLOQUES_DATOS];        //Definicion de la estructura datos libres
     EXT_DATOS particion[MAX_BLOQUES_PARTICION];   //Array de estructuras que contienen bloques de particion
-    int entradadir;
-    int grabardatos;
-    int flag = 0;
 
+    int flag = 0;
     char comando[LONGITUD_COMANDO]; //buffer de comando.
     char Argumento1[LONGITUD_ARGUMENTOS];
     char Argumento2[LONGITUD_ARGUMENTOS];
     char orden[LONGITUD_ORDEN];
 
+
+
     FILE *pfile = NULL; //Puntero al fichero que contiene la particion
     if ((pfile = fopen("particion.bin", "r+b")) == NULL){ // "rb" -> Lectura solo del fichero binario
         printf ( " Error en la apertura\n ");
     }
+
+
     fread(&particion, SIZE_BLOQUE, MAX_BLOQUES_PARTICION, pfile); //Tenemos toda la particion dividida en la estructura de bloques.
     //Hacemos los cambios en la particion pero vamos guardandolo en el Pfile.
-
-    //instanciamos los primeros 4 bloques dentro de la particion
-    memcpy(&ext_superblock,(EXT_SIMPLE_SUPERBLOCK *)&particion[0], SIZE_BLOQUE);
-    memcpy(&ext_bytemaps,(EXT_BLQ_INODOS *)&particion[1], SIZE_BLOQUE);
-    memcpy(&ext_blq_inodos,(EXT_BLQ_INODOS *)&particion[2], SIZE_BLOQUE);
-    memcpy(&directorio,(EXT_ENTRADA_DIR *)&particion[3], SIZE_BLOQUE);
-    memcpy(&memdatos,(EXT_DATOS *)&particion[4],MAX_BLOQUES_DATOS*SIZE_BLOQUE);
-    
     
     // Seleccion de comandos: info, bytemaps,dir,rename,imprimir,remove,copy,salir
     //Ejecucion del programa-----------------
+
     printf("Sistema Archivos SysExt4\n"); 
+    printf("Size of unsigned int: %d\n",sizeof(unsigned int));
     do{
-        ActualizarSuperBloque(&ext_superblock,particion);
+      //  ActualizarSuperBloque(&ext_superblock,particion);
         memset(orden, 0, LONGITUD_ORDEN);           //Limpieza de los comandos.
         memset(Argumento1, 0, LONGITUD_ARGUMENTOS);
         memset(Argumento2, 0, LONGITUD_ARGUMENTOS);
-        
+        memset(comando,0,LONGITUD_COMANDO);
+        do{
         printf("\n>> ");scanf("%[^\n]s",comando);fpurge(stdin);  //[\n] indica la limitacion de lectura
+        }while(comando[0]=='\0');
         desfracomando(comando,orden,Argumento1,Argumento2); //Funcion para desfragmentar el comando.
 
         if(strcmp(orden, "info")==0){ //Llamamos a la funcion correspondiente de cada uno.
             //printf("%s",orden); //Funcion de info:
+
+            memcpy(&ext_superblock,(EXT_SIMPLE_SUPERBLOCK *)&particion[0], SIZE_BLOQUE);
             LeeSuperBloque(&ext_superblock);
+            //memcpy(&particion[0],(EXT_DATOS *)&ext_superblock, SIZE_BLOQUE);
+
             flag = 0;
         }else if(strcmp(orden, "bytemaps")==0){
-            printf("%s",orden); //Funcion de bytemaps
+            //printf("%s\n",orden); //Funcion de bytemaps
+
+            memcpy(&ext_bytemaps,(EXT_BLQ_INODOS *)&particion[1], SIZE_BLOQUE);
+            //inicializarInodos(&ext_bytemaps);
+            ImprimirByteMaps(&ext_bytemaps);
+
             flag = 0;
         
         }else if(strcmp(orden, "dir")==0){
-            printf("%s",orden);
+            memcpy(&directorio,(EXT_ENTRADA_DIR *)&datosfich[3], SIZE_BLOQUE);
+
+            //printf("%s",orden);
             flag = 0;
         
         }else if(strcmp(orden, "rename")==0){
@@ -91,18 +101,46 @@ int main(){
         }else if(strcmp(orden, "salir")==0){
             flag = 1;
         }else{
-            //printf("%s\n",orden);
             printf("ERROR: Comando ilegal [info,bytemaps,dir,rename,imprimir,remove,copy,salir]");
         }
 
         /*printf("\nLa orden es: %s\n",orden);
         printf("El argumento 1 es: %s\n",Argumento1);
         printf("El argumento 2 es: %s\n",Argumento2);*/
+
     }while(flag == 0);
-    //---------------------------------------
     return 0;
 }
+
+void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio){
+
+
+}
+
+void inicializarInodos(EXT_BYTE_MAPS *Pbyte_map){
+    int i = 0;
+    for(i=0;i<MAX_INODOS;i++){
+       Pbyte_map->bmap_inodos[i]=0;
+    }
+    
+}
+
+void ImprimirByteMaps(EXT_BYTE_MAPS *Pbyte_map){
+    int n = 0;
+    int i = 0;
+
+    printf("Byte_Maps_Inodos: ");
+    for(i=0;i<MAX_INODOS;i++){
+        printf("%d ",Pbyte_map->bmap_inodos[i]);
+    }
+    printf("\nByte_Maps_Bloques [0-25]: ");
+    for(i=0;i<25;i++){
+        printf("%d ",Pbyte_map->bmap_inodos[i]);
+    }
+}
+
 void LeeSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque){ //posible funcion de actualizado de superbloque.
+
     printf("    -INFO-\n\n");
     printf("Tamaño Bloque: %d\n",Psuper_bloque->s_block_size);
     printf("Inodos Particion: %d\n",Psuper_bloque->s_inodes_count);
@@ -110,19 +148,8 @@ void LeeSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque){ //posible funcion de 
     printf("Bloques Particion: %d\n",Psuper_bloque->s_blocks_count);
     printf("Bloques Libres: %d\n",Psuper_bloque->s_free_blocks_count);
     printf("Primer Bloque Datos: %d\n",Psuper_bloque->s_relleno);
+    
 }
-void ActualizarSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,EXT_DATOS *particion){
-    //Preguntar como se puede actualizar el superbloque    
-    int i = 0;
-    int j = 0;
-    for(j=0; j<MAX_BLOQUES_PARTICION;j++){
-        for(i=0; i<SIZE_BLOQUE;i++){
-            particion[i].dato[j]; //Recorrer todos los bytes de la particion.
-            //¿Como actualizo el superbloque?
-        }
-    } 
-}
-
 void desfracomando(char*comando,char *orden,char *Argumento1,char *Argumento2){ //Desfragmentacion del comando
     int i = 0;
     int n = 0;
