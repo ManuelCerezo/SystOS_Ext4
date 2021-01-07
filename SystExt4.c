@@ -13,6 +13,11 @@
 #define LONGITUD_ARGUMENTOS 20 //No es necesario +20 caracteres para definir un argumento.
 
 //Funciones.
+void actualizarParticion(EXT_SIMPLE_SUPERBLOCK *Psuperbloque, 
+EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pbloq_inodos,
+EXT_ENTRADA_DIR *Pdirectorio, EXT_DATOS *Pmemdatos,EXT_DATOS *Pparticion);
+
+void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *Argumento1, char *Argumento2);
 void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos);
 void ImprimirByteMaps(EXT_BYTE_MAPS *Pbyte_map);
 void ActualizarSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,EXT_DATOS *particion);
@@ -46,6 +51,8 @@ int main(){
      memcpy(&ext_bytemaps,(EXT_BLQ_INODOS *)&particion[1], SIZE_BLOQUE);
      memcpy(&ext_blq_inodos,(EXT_BLQ_INODOS *)&particion[2], SIZE_BLOQUE);
      memcpy(&memdatos,(EXT_DATOS *)&particion[4],MAX_BLOQUES_DATOS*SIZE_BLOQUE);
+
+     //actualizarParticion(&ext_superblock,&ext_bytemaps,&ext_blq_inodos,directorio,memdatos,particion) FUNCION ACTUALIZAR PARTICION
     
     // Seleccion de comandos: info, bytemaps,dir,rename,imprimir,remove,copy,salir
     //Ejecucion del programa-----------------
@@ -59,16 +66,16 @@ int main(){
         memset(Argumento2, 0, LONGITUD_ARGUMENTOS);
         memset(comando,0,LONGITUD_COMANDO);
         do{
-        printf("\n>> ");
-		scanf("%[^\n]s",comando);//[\n] indica la limitacion de lectura
-		fflush(stdin);  
+            printf("\n>> ");
+            scanf("%[^\n]s",comando);//[\n] indica la limitacion de lectura
+            fpurge(stdin);              //En linux utilizar -> __fpurge(stdin);
         }while(comando[0]=='\0');
+        
         desfracomando(comando,orden,Argumento1,Argumento2); //Funcion para desfragmentar el comando.
 
         if(strcmp(orden, "info")==0){ //Llamamos a la funcion correspondiente de cada uno.
             //printf("%s",orden); //Funcion de info:
             LeeSuperBloque(&ext_superblock);
-            //memcpy(&particion[0],(EXT_DATOS *)&ext_superblock, SIZE_BLOQUE);
 
             flag = 0;
         }else if(strcmp(orden, "bytemaps")==0){
@@ -84,7 +91,7 @@ int main(){
             flag = 0;
         
         }else if(strcmp(orden, "rename")==0){
-            printf("%s",orden);
+            frename(directorio,&ext_blq_inodos,Argumento1,Argumento2);
             flag = 0;
         
         }else if(strcmp(orden, "imprimir")==0){
@@ -100,6 +107,7 @@ int main(){
             flag = 0;
         
         }else if(strcmp(orden, "salir")==0){
+            //actualizarParticion(&ext_superblock,&ext_bytemaps,&ext_blq_inodos,directorio,memdatos,particion);
             flag = 1;
         }else{
             printf("ERROR: Comando ilegal [info,bytemaps,dir,rename,imprimir,remove,copy,salir]");
@@ -113,22 +121,55 @@ int main(){
     return 0;
 }
 
+void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *Argumento1, char *Argumento2){
+    int i = 0;
+    int flag = 0;
+    int flag1 = 0;
+
+    for(i=1;i<MAX_FICHEROS;i++){
+        if(Pdirectorio[i].dir_inodo != NULL_INODO){
+            if((strcmp(Pdirectorio[i].dir_nfich, Argumento2)==0)){
+                flag = 1;
+            }
+        }
+    }
+    if(flag == 0){
+        for(i=1;i<MAX_FICHEROS;i++){   
+            if(Pdirectorio[i].dir_inodo != NULL_INODO){
+                if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
+                    strcpy(Pdirectorio[i].dir_nfich,Argumento2);
+                    flag1 = 1;
+                }
+            }   
+        }
+    }
+    if(flag1 != 1){
+         printf("ERROR: Fichero %s no encontrado",Argumento1);
+    }
+    if(flag != 0){
+        printf("ERROR El fichero: %s ya existe",Argumento2);
+    }
+}
+
+
+
+void actualizarParticion(EXT_SIMPLE_SUPERBLOCK *Psuperbloque, 
+EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pbloq_inodos,
+EXT_ENTRADA_DIR *Pdirectorio, EXT_DATOS *Pmemdatos,EXT_DATOS *Pparticion){
+    //FUNCION ACTUALIZAR PARTICION
+
+    memcpy(&Pparticion[0],(EXT_DATOS *)&Psuperbloque, SIZE_BLOQUE);
+    memcpy(&Pparticion[1],(EXT_DATOS *)&PByte_maps, SIZE_BLOQUE);
+    memcpy(&Pparticion[2],(EXT_DATOS *)&Pbloq_inodos, SIZE_BLOQUE);
+    memcpy(&Pparticion[3],(EXT_DATOS *)&Pdirectorio, SIZE_BLOQUE);
+    memcpy(&Pparticion[4],(EXT_DATOS *)&Pmemdatos, SIZE_BLOQUE);
+
+}
+
 void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos){
     int i = 0;
     int n = 0;
     int j = 0;
-
-    /* PARA DEBUGEAR
-    for(i=0;i<MAX_FICHEROS;i++){
-        if(Pdirectorio[i].dir_inodo != NULL_INODO){
-            printf("%s\t",Pdirectorio[i].dir_nfich);
-            printf("Inodo: %d Contador: %d\n",Pdirectorio[i].dir_inodo,i);
-
-        }
-        else{
-            printf("NULL, contador: %d\n",i);
-        }
-    }*/
     
    for(i=1;i<MAX_FICHEROS;i++){   
         if(Pdirectorio[i].dir_inodo != NULL_INODO){
