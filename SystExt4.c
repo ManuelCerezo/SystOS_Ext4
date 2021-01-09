@@ -14,11 +14,19 @@
 
 //Funciones.
 void actualizarParticion(EXT_SIMPLE_SUPERBLOCK *Psuperbloque, 
-EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pbloq_inodos,
+EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pext_blq_inodos,
 EXT_ENTRADA_DIR *Pdirectorio, EXT_DATOS *Pmemdatos,EXT_DATOS *Pparticion);
 
+void Copiar(EXT_ENTRADA_DIR *Pdirectorio, EXT_BLQ_INODOS *Pext_blq_inodos,
+           EXT_BYTE_MAPS *PByte_maps, EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,
+           EXT_DATOS *Pparticion, char *Argumento1, char *Argumento2);
+
+void Borrar(EXT_ENTRADA_DIR *Pdirectorio, EXT_BLQ_INODOS *Pbloq_inodos,
+           EXT_BYTE_MAPS *Pbyte_map, EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,
+           char *Argumento1);
+
 void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EXT_DATOS *Pmemdatos,char* Argumento1);
-void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *Argumento1, char *Argumento2);
+void frename(EXT_ENTRADA_DIR *Pdirectorio,char *Argumento1, char *Argumento2);
 void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos);
 void ImprimirByteMaps(EXT_BYTE_MAPS *Pbyte_map);
 void ActualizarSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,EXT_DATOS *particion);
@@ -92,7 +100,7 @@ int main(){
             flag = 0;
         
         }else if(strcmp(orden, "rename")==0){
-            frename(directorio,&ext_blq_inodos,Argumento1,Argumento2);
+            frename(directorio,Argumento1,Argumento2);
             flag = 0;
         
         }else if(strcmp(orden, "imprimir")==0){
@@ -101,11 +109,11 @@ int main(){
             flag = 0;
         
         }else if(strcmp(orden, "remove")==0){
-            printf("%s",orden);
+            Borrar(directorio,&ext_blq_inodos,&ext_bytemaps,&ext_superblock,Argumento1);
             flag = 0;
         
         }else if(strcmp(orden, "copy")==0){
-            printf("%s",orden);
+            Copiar(directorio,&ext_blq_inodos,&ext_bytemaps,&ext_superblock,particion,Argumento1,Argumento2);
             flag = 0;
         
         }else if(strcmp(orden, "salir")==0){
@@ -121,6 +129,145 @@ int main(){
 
     }while(flag == 0);
     return 0;
+}
+void Copiar(EXT_ENTRADA_DIR *Pdirectorio, EXT_BLQ_INODOS *Pext_blq_inodos,
+           EXT_BYTE_MAPS *PByte_maps, EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,
+           EXT_DATOS *Pparticion, char *Argumento1, char *Argumento2){
+               
+    int i = 0;
+    int n = 0;
+    int j = 0;
+    int cont = 0;
+    int f = 0;
+    unsigned short int flag = 0;
+    unsigned short int inodoLibre;
+    unsigned short bloqueLibre[MAX_NUMS_BLOQUE_INODO];
+    unsigned int tamanio;
+    unsigned short aux[MAX_NUMS_BLOQUE_INODO];
+
+    for(i=1;i<MAX_FICHEROS;i++){
+        if(Pdirectorio[i].dir_inodo != NULL_INODO){
+            if((strcmp(Pdirectorio[i].dir_nfich, Argumento2)==0)){
+                flag = 1;
+            }
+        }
+    }
+    if(Argumento2[0]!= '\0'){
+        for(i=1;i<MAX_FICHEROS;i++){ 
+            if(Pdirectorio[i].dir_inodo != NULL_INODO){
+                f++;
+                if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
+                    for(n=0;n<MAX_NUMS_BLOQUE_INODO;n++){                                                       
+                        if(Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n] != NULL_BLOQUE){
+                            tamanio = Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].size_fichero;
+                            aux[n] = Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n];
+                            j++;
+                        }
+                    }
+                }
+                else{
+                    cont++;
+                }
+            } 
+        }
+        if(cont == f){
+            printf("[ ERROR:  Fichero no existe]");
+        }
+        else if (flag == 1){
+            printf("[ ERROR:  El Fichero ya existe]");
+        }
+        else{
+            for(i=3;i<MAX_INODOS;i++){
+               if(PByte_maps->bmap_inodos[i] == 0){
+                    inodoLibre = i;
+                    i=MAX_INODOS;
+               }
+            }
+            n=0;
+            for(i=4;i<MAX_BLOQUES_PARTICION;i++){
+               if(PByte_maps->bmap_bloques[i] == 0){
+                   bloqueLibre[n] = i;
+                   n++;
+                   if(n == j){
+                    i = MAX_BLOQUES_PARTICION;
+                   }
+               }
+            }
+            for(i=1;i<MAX_FICHEROS;i++){
+                if(Pdirectorio[i].dir_inodo == NULL_INODO){
+                    strcpy(Pdirectorio[i].dir_nfich, Argumento2);
+                    Pdirectorio[i].dir_inodo = inodoLibre;
+                    Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].size_fichero = tamanio;
+                    PByte_maps->bmap_inodos[Pdirectorio[i].dir_inodo] = 1;
+                    for(n=0;n<MAX_NUMS_BLOQUE_INODO;n++){
+                        if(n == j){
+                            n = MAX_NUMS_BLOQUE_INODO;
+                            i = MAX_FICHEROS;
+                        }
+                        else{
+                            Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n] = bloqueLibre[n];
+                        }
+                    }
+                } 
+            }
+            for(i=0;i<j;i++){
+                PByte_maps->bmap_bloques[bloqueLibre[i]] = 1;
+            }
+            for(i=0;i<j;i++){
+                //     memcpy(&ext_superblock,(EXT_SIMPLE_SUPERBLOCK *)&particion[0], SIZE_BLOQUE);
+                memcpy(&Pparticion[bloqueLibre[i]],(EXT_DATOS *)&Pparticion[aux[i]],SIZE_BLOQUE);
+            }
+            Psuper_bloque->s_free_inodes_count -- ;
+            Psuper_bloque->s_free_blocks_count = Psuper_bloque->s_free_blocks_count - j ;
+        }
+    }
+    else{
+        printf("\n ERROR: Escribe un nombre de fichero valido");
+    }
+      
+}
+
+void Borrar(EXT_ENTRADA_DIR *Pdirectorio, EXT_BLQ_INODOS *Pext_blq_inodos,
+EXT_BYTE_MAPS *Pbyte_map, EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,char *Argumento1){
+
+    int i = 0;
+    int n = 0;
+    int j = 0;
+    int cont = 0;
+    int f = 0;
+    int inodo;
+    int Auxint[MAX_NUMS_BLOQUE_INODO];
+
+
+    for(i=1;i<MAX_FICHEROS;i++){   
+        if(Pdirectorio[i].dir_inodo != NULL_INODO){
+            f++;
+            if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
+                for(n=0;n<MAX_NUMS_BLOQUE_INODO;n++){                                                       
+                    if(Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n] != NULL_BLOQUE){
+                        Auxint[j] = Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n]; 
+                        j++; 
+                        Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n] = NULL_BLOQUE;
+                    }
+                }
+                Pbyte_map->bmap_inodos[Pdirectorio[i].dir_inodo] = 0;
+                Pdirectorio[i].dir_inodo = NULL_INODO;
+            }
+            else{
+                cont++;
+            }
+        } 
+    }
+    if(cont == f){
+        printf("[ERROR:] El Fichero no existe\n");
+    }
+    else{
+        for(i=0;i<j;i++){
+            Pbyte_map->bmap_bloques[Auxint[i]] = 0;
+        }
+        Psuper_bloque->s_free_inodes_count ++ ;
+        Psuper_bloque->s_free_blocks_count = Psuper_bloque->s_free_blocks_count + j ;
+    }  
 }
 
 void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EXT_DATOS *Pparticion,char* Argumento1){
@@ -160,35 +307,42 @@ void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EX
     }
 }
 
-void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *Argumento1, char *Argumento2){
+void frename(EXT_ENTRADA_DIR *Pdirectorio,char *Argumento1, char *Argumento2){
     int i = 0;
     int flag = 0;
     int flag1 = 0;
 
-    for(i=1;i<MAX_FICHEROS;i++){
-        if(Pdirectorio[i].dir_inodo != NULL_INODO){
-            if((strcmp(Pdirectorio[i].dir_nfich, Argumento2)==0)){
-                flag = 1;
-            }
-            if((strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0)){
-                flag1 = 1;
-            }
-        }
-    }
-    if(flag == 0){
-        for(i=1;i<MAX_FICHEROS;i++){   
+    if(Argumento2[0]!= '\0'){
+        for(i=1;i<MAX_FICHEROS;i++){
             if(Pdirectorio[i].dir_inodo != NULL_INODO){
-                if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
-                    strcpy(Pdirectorio[i].dir_nfich,Argumento2);
+                if((strcmp(Pdirectorio[i].dir_nfich, Argumento2)==0)){
+                    flag = 1;
                 }
-            }   
+                if((strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0)){
+                    flag1 = 1;
+                }
+            }
+        }
+        if(flag == 0){
+            for(i=1;i<MAX_FICHEROS;i++){   
+                if(Pdirectorio[i].dir_inodo != NULL_INODO){
+                    if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
+                        strcpy(Pdirectorio[i].dir_nfich,Argumento2);
+                    }
+                }   
+            }
+        }
+        if(flag1 == 0){
+            printf("ERROR: Fichero %s no encontrado",Argumento1);
+        }
+        else if(flag == 1){
+            printf("ERROR: El fichero: %s ya existe",Argumento2);
         }
     }
-    if(flag1 == 0){
-        printf("ERROR: Fichero %s no encontrado",Argumento1);
-    }else if(flag == 1){
-        printf("ERROR El fichero: %s ya existe",Argumento2);
+    else{
+        printf("\n ERROR: Escribe un nombre de fichero valido");
     }
+    
 }
 
 
@@ -213,7 +367,7 @@ void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos){
     
    for(i=1;i<MAX_FICHEROS;i++){   
         if(Pdirectorio[i].dir_inodo != NULL_INODO){
-            printf("%s\t",Pdirectorio[i].dir_nfich);                                                    //nombre
+            printf("%s  \t",Pdirectorio[i].dir_nfich);                                                    //nombre
             printf("Inodo: %d\t",Pdirectorio[i].dir_inodo);                                             // Inodo
             printf("Tamanio: %d\t",Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].size_fichero); //Tamanio
             printf("Bloques: ");
@@ -250,7 +404,7 @@ void LeeSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque){ //posible funcion de 
     printf("Inodos Libres: %d\n",Psuper_bloque->s_free_inodes_count);
     printf("Bloques Particion: %d\n",Psuper_bloque->s_blocks_count);
     printf("Bloques Libres: %d\n",Psuper_bloque->s_free_blocks_count);
-    printf("Primer Bloque Datos: %d\n",Psuper_bloque->s_relleno);
+    printf("Primer Bloque Datos: %d\n", PRIM_BLOQUE_DATOS);
     
 }
 void desfracomando(char*comando,char *orden,char *Argumento1,char *Argumento2){ //Desfragmentacion del comando
