@@ -17,6 +17,7 @@ void actualizarParticion(EXT_SIMPLE_SUPERBLOCK *Psuperbloque,
 EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pbloq_inodos,
 EXT_ENTRADA_DIR *Pdirectorio, EXT_DATOS *Pmemdatos,EXT_DATOS *Pparticion);
 
+void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EXT_DATOS *Pmemdatos,char* Argumento1);
 void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *Argumento1, char *Argumento2);
 void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos);
 void ImprimirByteMaps(EXT_BYTE_MAPS *Pbyte_map);
@@ -95,7 +96,8 @@ int main(){
             flag = 0;
         
         }else if(strcmp(orden, "imprimir")==0){
-            printf("%s",orden);
+            //printf("%s",orden);
+            imprimiFich(directorio,&ext_blq_inodos,particion,Argumento1);
             flag = 0;
         
         }else if(strcmp(orden, "remove")==0){
@@ -121,6 +123,43 @@ int main(){
     return 0;
 }
 
+void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EXT_DATOS *Pparticion,char* Argumento1){
+    int i = 0;
+    int n = 0;
+    int j = 0;
+    int cont = 0;
+    int f = 0;
+    char *Aux = NULL;
+    int Auxint[MAX_NUMS_BLOQUE_INODO];
+
+   for(i=1;i<MAX_FICHEROS;i++){   
+        if(Pdirectorio[i].dir_inodo != NULL_INODO){
+            f++;
+            if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
+                for(n=0;n<MAX_NUMS_BLOQUE_INODO;n++){                                                       
+                    if(Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n] != NULL_BLOQUE){
+                        Auxint[j] = Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n];
+                        //printf(" %d ",Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n]);
+                        //printf("Auxint[%d] <- Bloque: %d\n",j,Pext_blq_inodos->blq_inodos[Pdirectorio[i].dir_inodo].i_nbloque[n]); 
+                        j++; 
+                    }
+                }
+            }
+            else{
+                cont++;
+            }
+        } 
+    }
+    if(cont == f){
+        printf("[ERROR:] El Fichero no existe\n");
+    }else{
+        printf("\n");
+        for(i=0;i<j;i++){
+            printf("%s",Pparticion[Auxint[i]]);
+        }
+    }
+}
+
 void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *Argumento1, char *Argumento2){
     int i = 0;
     int flag = 0;
@@ -131,6 +170,9 @@ void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *
             if((strcmp(Pdirectorio[i].dir_nfich, Argumento2)==0)){
                 flag = 1;
             }
+            if((strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0)){
+                flag1 = 1;
+            }
         }
     }
     if(flag == 0){
@@ -138,15 +180,13 @@ void frename(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,char *
             if(Pdirectorio[i].dir_inodo != NULL_INODO){
                 if(strcmp(Pdirectorio[i].dir_nfich, Argumento1)==0){
                     strcpy(Pdirectorio[i].dir_nfich,Argumento2);
-                    flag1 = 1;
                 }
             }   
         }
     }
-    if(flag1 != 1){
-         printf("ERROR: Fichero %s no encontrado",Argumento1);
-    }
-    if(flag != 0){
+    if(flag1 == 0){
+        printf("ERROR: Fichero %s no encontrado",Argumento1);
+    }else if(flag == 1){
         printf("ERROR El fichero: %s ya existe",Argumento2);
     }
 }
