@@ -44,6 +44,8 @@ int main()
      int entradadir;
      int grabardatos;
      FILE *fent;
+
+     
      
      // Lectura del fichero completo de una sola vez
      ...

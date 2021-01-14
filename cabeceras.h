@@ -4,7 +4,7 @@
 #define MAX_BLOQUES_DATOS 96
 #define PRIM_BLOQUE_DATOS 4
 #define MAX_BLOQUES_PARTICION MAX_BLOQUES_DATOS+PRIM_BLOQUE_DATOS
-  //superbloque + bytemap inodos y bytemap bloques + inodos + directorio
+//superbloque + bytemap inodos y bytemap bloques + inodos + directorio
 #define MAX_NUMS_BLOQUE_INODO 7
 #define LEN_NFICH 17
 #define NULL_INODO 0xFFFF
@@ -18,7 +18,7 @@ typedef struct {
   unsigned int s_free_inodes_count;     /* inodos libres */
   unsigned int s_first_data_block;      /* primer bloque de datos */
   unsigned int s_block_size;        /* tamaño del bloque en bytes */
-  unsigned char s_relleno[SIZE_BLOQUE-6*sizeof(unsigned int)]; /* relleno a 0's*/
+  unsigned int s_relleno[SIZE_BLOQUE-6*sizeof(unsigned int)]; /* relleno a 0's*/
 } EXT_SIMPLE_SUPERBLOCK;
 
 /* Bytemaps, caben en un bloque */
@@ -47,6 +47,7 @@ typedef struct {
 } EXT_ENTRADA_DIR;
 
 /* Bloque de datos */
+
 typedef struct{
-  unsigned char dato[SIZE_BLOQUE]; 	
+  unsigned char dato[SIZE_BLOQUE];
 } EXT_DATOS;

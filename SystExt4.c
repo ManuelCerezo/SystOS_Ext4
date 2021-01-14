@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "cabeceras.h"
 #include <string.h>
+#include <stdio_ext.h> 
 #define LONGITUD_COMANDO 100
 #define LONGITUD_ORDEN 10       
 #define LONGITUD_ARGUMENTOS 20 //No es necesario +20 caracteres para definir un argumento.
@@ -29,7 +30,6 @@ void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EX
 void frename(EXT_ENTRADA_DIR *Pdirectorio,char *Argumento1, char *Argumento2);
 void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos);
 void ImprimirByteMaps(EXT_BYTE_MAPS *Pbyte_map);
-void ActualizarSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,EXT_DATOS *particion);
 void LeeSuperBloque(EXT_SIMPLE_SUPERBLOCK *Psuper_bloque);
 void desfracomando(char*comando,char *oren,char *Argumento1,char *Argumento2);
 int main(){
@@ -42,6 +42,7 @@ int main(){
     EXT_DATOS particion[MAX_BLOQUES_PARTICION];   //Array de estructuras que contienen bloques de particion
     
     int flag = 0;
+    int leidos = 0;
     char comando[LONGITUD_COMANDO]; //buffer de comando.
     char Argumento1[LONGITUD_ARGUMENTOS];
     char Argumento2[LONGITUD_ARGUMENTOS];
@@ -53,7 +54,7 @@ int main(){
     if ((pfile = fopen("particion.bin", "r+b")) == NULL){ // "rb" -> Lectura solo del fichero binario
         printf ( " Error en la apertura\n ");
     }
-    fread(&particion, SIZE_BLOQUE, MAX_BLOQUES_PARTICION, pfile); //Tenemos toda la particion dividida en la estructura de bloques.
+    leidos = fread(&particion, SIZE_BLOQUE, MAX_BLOQUES_PARTICION, pfile); //Tenemos toda la particion dividida en la estructura de bloques.
     //Hacemos los cambios en la particion pero vamos guardandolo en el Pfile.
      memcpy(&ext_superblock,(EXT_SIMPLE_SUPERBLOCK *)&particion[0], SIZE_BLOQUE);
      memcpy(&directorio,(EXT_ENTRADA_DIR *)&particion[3], SIZE_BLOQUE);
@@ -67,7 +68,7 @@ int main(){
     //Ejecucion del programa-----------------
 
     printf("Sistema Archivos SysExt4\n"); 
-    printf("Size of unsigned int: %d\n",sizeof(unsigned int));
+    printf("Size of leidos: %d\n",leidos);
     do{
       //  ActualizarSuperBloque(&ext_superblock,particion);
         memset(orden, 0, LONGITUD_ORDEN);           //Limpieza de los comandos.
@@ -77,7 +78,7 @@ int main(){
         do{
             printf("\n>> ");
             scanf("%[^\n]s",comando);//[\n] indica la limitacion de lectura
-            fpurge(stdin);              //En linux utilizar -> __fpurge(stdin);
+            __fpurge(stdin);              //En linux utilizar -> __fpurge(stdin); para limpieza de buffer de teclado. necesario la libreria: <stdio_ext.h> 
         }while(comando[0]=='\0');
         
         desfracomando(comando,orden,Argumento1,Argumento2); //Funcion para desfragmentar el comando.
@@ -117,7 +118,12 @@ int main(){
             flag = 0;
         
         }else if(strcmp(orden, "salir")==0){
-            //actualizarParticion(&ext_superblock,&ext_bytemaps,&ext_blq_inodos,directorio,memdatos,particion);
+            actualizarParticion(&ext_superblock,&ext_bytemaps,&ext_blq_inodos,directorio,memdatos,particion);
+            fwrite(&particion[0],SIZE_BLOQUE,leidos,pfile);
+
+            //memcpy(&pfile,(FILE*)&particion[0],(SIZE_BLOQUE*MAX_BLOQUES_PARTICION)); //Actualizamos el archivo -> .bin
+            //Actualizar el archivo .bin
+            fclose(pfile);
             flag = 1;
         }else{
             printf("ERROR: Comando ilegal [info,bytemaps,dir,rename,imprimir,remove,copy,salir]");
@@ -130,6 +136,17 @@ int main(){
     }while(flag == 0);
     return 0;
 }
+void actualizarParticion(EXT_SIMPLE_SUPERBLOCK *Psuperbloque, 
+EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pbloq_inodos,
+EXT_ENTRADA_DIR *Pdirectorio, EXT_DATOS *Pmemdatos,EXT_DATOS *Pparticion){
+
+    memcpy(&Pparticion[0],(EXT_DATOS *)&Psuperbloque, SIZE_BLOQUE);
+    memcpy(&Pparticion[1],(EXT_DATOS *)&PByte_maps, SIZE_BLOQUE);
+    memcpy(&Pparticion[2],(EXT_DATOS *)&Pbloq_inodos, SIZE_BLOQUE);
+    memcpy(&Pparticion[3],(EXT_DATOS *)&Pdirectorio, SIZE_BLOQUE);
+    //memcpy(&Pparticion[4],(EXT_DATOS *)&Pmemdatos, (SIZE_BLOQUE*MAX_BLOQUES_DATOS));
+}
+
 void Copiar(EXT_ENTRADA_DIR *Pdirectorio, EXT_BLQ_INODOS *Pext_blq_inodos,
            EXT_BYTE_MAPS *PByte_maps, EXT_SIMPLE_SUPERBLOCK *Psuper_bloque,
            EXT_DATOS *Pparticion, char *Argumento1, char *Argumento2){
@@ -302,7 +319,7 @@ void imprimiFich(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos,EX
     }else{
         printf("\n");
         for(i=0;i<j;i++){
-            printf("%s",Pparticion[Auxint[i]]);
+            printf("%s",Pparticion[Auxint[i]].dato);
         }
     }
 }
@@ -343,21 +360,6 @@ void frename(EXT_ENTRADA_DIR *Pdirectorio,char *Argumento1, char *Argumento2){
         printf("\n ERROR: Escribe un nombre de fichero valido");
     }
     
-}
-
-
-
-void actualizarParticion(EXT_SIMPLE_SUPERBLOCK *Psuperbloque, 
-EXT_BYTE_MAPS *PByte_maps, EXT_BLQ_INODOS *Pbloq_inodos,
-EXT_ENTRADA_DIR *Pdirectorio, EXT_DATOS *Pmemdatos,EXT_DATOS *Pparticion){
-    //FUNCION ACTUALIZAR PARTICION
-
-    memcpy(&Pparticion[0],(EXT_DATOS *)&Psuperbloque, SIZE_BLOQUE);
-    memcpy(&Pparticion[1],(EXT_DATOS *)&PByte_maps, SIZE_BLOQUE);
-    memcpy(&Pparticion[2],(EXT_DATOS *)&Pbloq_inodos, SIZE_BLOQUE);
-    memcpy(&Pparticion[3],(EXT_DATOS *)&Pdirectorio, SIZE_BLOQUE);
-    memcpy(&Pparticion[4],(EXT_DATOS *)&Pmemdatos, SIZE_BLOQUE);
-
 }
 
 void imprimirDir(EXT_ENTRADA_DIR *Pdirectorio,EXT_BLQ_INODOS *Pext_blq_inodos){
