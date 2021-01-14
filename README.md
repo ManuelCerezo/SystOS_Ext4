@@ -5,8 +5,8 @@ NOTAS:
 - Progarama desarrollado para LINUX/GNU UBUNTU
 - La Libreria <stdio__ext.h> es necesaria para poder utilizar la funcion: __fpurge(stdin);
   dicha funcion es necesaria para la limpieza del buffer del teclado.
-- Opcion de guardado en el fichero solo una vez cuando se ejecuta el comando: salir, guardado con fwrite.
+- Opcion de guardado en el fichero solo una vez cuando se ejecuta el comando: salir, guardado con fwrite (No funciona correctamente del todo)
 
 Participantes de la actividad: 
-Miguel Herencia
-Manuel Jesus Cerezo Mazon
+- Miguel Herencia
+- Manuel Jesus Cerezo Mazon
